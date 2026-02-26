@@ -1,7 +1,25 @@
 function [Qs, Qscost, iter_count, time_, cost_] = nnm_solver(A, solver, options)
+%NNM_SOLVER 
+% Finding the 'normalization matrix' for A. If A1 is the nearest
+% normal, then A1 = Qs' * D1 * Qs for some diagonal matrix D1.
 %   
-%   Finding the nearest normal matrix to A using the method 'solver'
-
+%
+%   Inputs:
+%       A        - complex-valued square matrix
+%       SOLVER   - manopt solver for the problem (trustregions, arc, etc.)
+%       OPTIONS  - struct of options for SOLVER
+%
+%   Outputs:
+%       Qs        - 
+%       Qscost    - norm(A - A1, 'fro')^2
+%       iter_count- number of iterations executed by SOLVER 
+%       time_     - time needed by SOLVER
+%       cost_     - equals to Qscost
+%
+%   Example:
+%       % 
+%
+%   See also
 n = size(A, 1);
 
 manifold = unitaryfactory(n, 1);
@@ -58,17 +76,10 @@ function eH = nnm_ehess(Q, Z)
 end
 
 function H = nnm_hess(Q, Z)
+% does not work properly
     eH = nnm_ehess(Q, Z);
     G = nnm_egrad(Q);
     DG = eH - Q * Z * (Q' * G + G' * Q)/2;
-    % % Z = Q * Z;
-    % B = Q' * A * Q;
-    % S = P(B);
-    % % deltaB = comm(B, Z);
-    % deltaB = Z' * Q' * A * Q + Q' * A * Q * Z;
-    % deltaS = P(deltaB);
-    % deltaQ = Q*Z;
-    % DG = 2*(A * deltaQ * S' + A * Q * deltaS' + A' * deltaQ * S + A' * Q * deltaS);
     H = skew(Q' * DG);
 end
 

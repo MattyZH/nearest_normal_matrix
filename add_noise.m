@@ -1,5 +1,6 @@
 function A_noised = add_noise(A, ratio)
-%UNTITLED4 Summary of this function goes here
+%   adding noise to A with Frobenius norm equal to 
+%   RATIO * norm(A, 'fro'). The noise is uniformly distributed on a sphere.
 %   Detailed explanation goes here
 n = size(A);
 noise = randn(n) + 1i * randn(n);
