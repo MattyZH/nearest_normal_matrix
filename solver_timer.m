@@ -1,4 +1,4 @@
-function [timing, timing_average, iterations] = solver_timer(solvers, options, input_sizes, batch_size, verbosity)
+function [timing, timing_average, iterations] = solver_timer(solvers, options, test_data, distances, verbosity)
 %SOLVER_TIMER Times multiple solvers on varying input sizes.
 %
 %   [TIMING, TIMING_AVERAGE, ITERATIONS] = SOLVER_TIMER(SOLVERS, OPTIONS,
@@ -10,8 +10,7 @@ function [timing, timing_average, iterations] = solver_timer(solvers, options, i
 %   Inputs:
 %       SOLVERS      - Cell array of function handles to the solvers to be timed.
 %       OPTIONS      - Struct containing optional parameters for the solvers.
-%       INPUT_SIZES  - Array of input sizes to test the solvers on.
-%       BATCH_SIZE   - Number of tests for each size to average over.
+%       TEST_DATA    - Array of testing data. cell array with cells of size batch_size x n x n for various n 
 %       VERBOSITY    - Integer specifying the level of output verbosity (0 = silent, 1 = basic, etc.).
 %
 %   Outputs:
@@ -27,17 +26,19 @@ function [timing, timing_average, iterations] = solver_timer(solvers, options, i
 %       verbosity = 1;
 %       [timing, avg, iters] = solver_timer(solvers, options, input_sizes, batch_size, verbosity);
 %
-%   See also TIC, TOC, TIMEIT.
+%  
+    is_ = size(test_data, 1);
+    batch_size = size(test_data{1}, 1);
 
-    timing = zeros(size(solvers, 2), size(input_sizes, 2), batch_size);
-    iterations = zeros(size(solvers, 2), size(input_sizes, 2), batch_size);
+    timing = zeros(size(solvers, 2), is_, batch_size);
+    iterations = zeros(size(solvers, 2), is_, batch_size);
     for j = 1:numel(solvers)
         solver_ = solvers{j};
         if verbosity > 0
             fprintf('Started testing solver %s\n', func2str(solver_))
         end
-        for i = 1:numel(input_sizes)
-            n = input_sizes(i);
+        for i = 1:is_
+            n = size(test_data{i}, 2);  
             if verbosity > 1
                 fprintf('Started testing input size %d\n', n)
             end
@@ -45,36 +46,30 @@ function [timing, timing_average, iterations] = solver_timer(solvers, options, i
                 if verbosity > 2
                     fprintf('Started testing batch number %d out of %d. ', k, batch_size)
                 end
-                % fprintf('Maximum iterations(%d) reached with solver %s (n=%d, batch=%d)\n', options.maxiter, func2str(solver), n, k)
-                [A, dist_] = random_matrix(n);
+                A = squeeze(test_data{i}(k, :, :));
+                dist_ = distances{i}(k);
 
                 % execution 
                 [Qs, Qscost, iter_count, time_, cost_] = nnm_solver(A, solver_, options);
                 
-                if iter_count >= options.maxiter
+                if iter_count >= options.maxiter - 10
+                    % too many iterations (990+)
                     fprintf('Maximum iterations(%d) reached with solver %s (n=%d, batch=%d)\n', options.maxiter, func2str(solver_), n, k)
                 end
 
-                if cost_ > 2*dist_
+                if cost_ > 1.1*dist_
+                    % bad answer, found normal matrix is too far
                     fprintf('Cost exceeded threshold with solver %s (n=%d, batch=%d)\n', func2str(solver_), n, k);
                 end
 
-                iterations(j, i, k) = iter_count;
-                timing(j, i, k) = time_; % Store the timing result
+                iterations(j, i, k) = iter_count; 
+                timing(j, i, k) = time_;
                 if verbosity > 2
-                    fprintf('Time = %f.\n', time_)
+                    fprintf('Time = %f, %d iterations.\n', time_, iter_count)
                 end
             end
         end
     end
     timing_average = mean(timing, 3);
-    
-    function  [A, dist_] = random_matrix(n)
-        Qt = randunitary(n);
-        Dt = random_diagonal(n);
-        Atrue = Qt * Dt * Qt';
-        ratio = 0.05 * rand;
-        A = add_noise(Atrue, ratio);
-        dist_ = norm(A - Atrue, 'fro')^2;
-    end
+
 end

@@ -28,14 +28,17 @@ problem.M = manifold;
 Q_init = randunitary(n);
 % Q_init = eye(n);
 
-problem.cost = @(Q) nnm_cost(Q);
-problem.costgrad = @(Q) nnm_costgrad(Q);
-problem.egrad = @(Q) nnm_egrad(Q);
-problem.ehess = @(Q, Z) nnm_ehess(Q, Z);
-problem.hess = @(Q, Z) nnm_hess(Q, Z);
+problem.cost = @nnm_cost;
+% problem.costgrad = @(Q) nnm_costgrad(Q);
+problem.grad = @nnm_grad;
+% problem.egrad = @(Q) nnm_egrad(Q);
+% problem.ehess = @(Q, Z) nnm_ehess(Q, Z);
+problem.hess = @nnm_hess;
+
 
 if options.testing_ == true
     checkhessian(problem);
+    checkgradient(problem)
 end
 
 [Qs, Qscost, info] = solver(problem, Q_init, options);
@@ -44,13 +47,56 @@ iter_count = last_info.iter;
 time_ = last_info.time;
 cost_ = last_info.cost;
 
-function cost = nnm_cost(Q)
-    B = Q' * A * Q;
-    S = P(B);
-    cost = norm(S, 'fro')^2;
+function store = prepare(Q, store)
+    if ~isfield(store, 'B')
+        store.B = Q' * A * Q;
+    end
+    if ~isfield(store, 'S')
+        store.S = P(store.B);
+    end
+    if ~isfield(store, 'almostgrad')
+        store.almostgrad = store.B * store.S' + store.B' * store.S;
+    end
+
 end
 
+function [cost, store] = nnm_cost(Q, store)
+    store = prepare(Q, store);
+    cost = norm(store.S, 'fro')^2;
+end
 
+function [grad, store] = nnm_grad(Q, store)
+    store = prepare(Q, store);
+    grad = 2 * skew(store.almostgrad);
+end
+
+function [H, store] = nnm_hess(Q, U, store)
+    % finally works
+    store = prepare(Q, store);
+    B = store.B;
+    S = store.S;
+    BU = B * U;
+    UB = U * B;
+    H = 2 * skew(-UB' * S + BU * S' + comm(B', P(BU - UB)) - U * symm(store.almostgrad));
+end
+
+function W  = comm(U, V)
+    W = U * V - V * U;
+end
+
+function W = skew(W)
+    W = 0.5 * (W - W');
+end
+
+function W = P(W)
+    W = W - diag(diag(W));
+end
+
+function W = symm(W)
+    W = 0.5 * (W + W');
+end
+
+% Below are functions that are currently not in use
 function [cost, gradient] = nnm_costgrad(Q)
     B = Q' * A * Q;
     S = P(B);
@@ -67,32 +113,12 @@ function G = nnm_egrad(Q)
     G = 2 * (A * Q * S' + A' * Q * S);
 end
 
-function eH = nnm_ehess(Q, Z)
-    Z = problem.M.tangent2ambient(Q, Z);
+function eH = nnm_ehess(Q, U)
+    Z = problem.M.tangent2ambient(Q, U);
     S = P(Q' * A * Q);
     dB = Z' * A * Q + Q' * A * Z;
     eH = A * Z * S' + A * Q * P(dB)' + A' * Z * S + A' * Q * P(dB);
     eH = 2 * eH;
-end
-
-function H = nnm_hess(Q, Z)
-% does not work properly
-    eH = nnm_ehess(Q, Z);
-    G = nnm_egrad(Q);
-    DG = eH - Q * Z * (Q' * G + G' * Q)/2;
-    H = skew(Q' * DG);
-end
-
-function W  = comm(U, V)
-    W = U * V - V * U;
-end
-
-function W = skew(W)
-    W = 0.5 * (W - W');
-end
-
-function W = P(W)
-    W = W - diag(diag(W));
 end
 
 end
