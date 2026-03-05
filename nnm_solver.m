@@ -25,8 +25,11 @@ n = size(A, 1);
 manifold = unitaryfactory(n, 1);
 problem.M = manifold;
 
-Q_init = randunitary(n);
-% Q_init = eye(n);
+if options.schur == true
+    [Q_init, ~] = schur(A);
+else
+    Q_init = randunitary(n);
+end
 
 problem.cost = @nnm_cost;
 % problem.costgrad = @(Q) nnm_costgrad(Q);

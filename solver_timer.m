@@ -70,6 +70,6 @@ function [timing, timing_average, iterations] = solver_timer(solvers, options, t
             end
         end
     end
-    timing_average = mean(timing, 3);
+    timing_average = median(timing, 3);
 
 end
