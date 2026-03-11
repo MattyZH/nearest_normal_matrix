@@ -1,4 +1,4 @@
-function [test_data, distances] = nnm_test_data_generator(input_sizes, batch_sizes, max_ratio, mode)
+function [test_data, distances] = nnm_test_data_generator(input_sizes, batch_sizes, max_ratio, mode_)
     is_ = size(input_sizes, 1);
     if size(batch_sizes, 1) == 1
         bs = batch_sizes;
@@ -12,32 +12,31 @@ function [test_data, distances] = nnm_test_data_generator(input_sizes, batch_siz
         test_data{i} = zeros(i, n, n);
         distances{i} = zeros(i, 1);
         for k = 1:bs
-            [A, dist_] = normal_matrix_noise(n, max_ratio, mode);
+            [A, dist_] = normal_matrix_noise(n, max_ratio, mode_);
             distances{i}(k) = dist_;
             test_data{i}(k, :, :) = A;
         end
     end
 
 
-    function  [A, dist_] = normal_matrix_noise(n_, max_ratio, mode)
-        if strcmp(mode, "real")
+    function  [A, dist_] = normal_matrix_noise(n_, max_ratio, mode_)
+        if strcmp(mode_, "real")
             Qt = randrot(n_);
             Dt = random_quasidiagonal(n_);
         else
-            disp(n_)
             Qt = randunitary(n_);
             Dt = random_diagonal(n_);
         end
         Atrue = Qt * Dt * Qt';
         ratio = max_ratio * rand;
-        A = add_noise(Atrue, ratio, mode);
+        A = add_noise(Atrue, ratio, mode_);
         dist_ = norm(A - Atrue, 'fro')^2;
         end
 
 
-    function A_noised = add_noise(A, ratio, mode)
+    function A_noised = add_noise(A, ratio, mode_)
         sizeA = size(A);
-        if strcmp(mode, "real")
+        if strcmp(mode_, "real")
             noise = randn(sizeA);
         else
             noise = randn(sizeA) + 1i * randn(sizeA);
@@ -50,6 +49,7 @@ function [test_data, distances] = nnm_test_data_generator(input_sizes, batch_siz
         d = randn(n, 1) + 1i * randn(n, 1);   
         D = diag(d);
     end
+
     function D = random_quasidiagonal(n)
         d = randn(n,1);  
         D = zeros(n);
