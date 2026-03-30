@@ -10,6 +10,11 @@ function utils = get_utils()
     utils.random_quasidiagonal = @random_quasidiagonal;
     utils.add_noise = @add_noise;
     utils.normal_matrix_noise = @normal_matrix_noise;
+    utils.unitarybase2normalbase = @unitarybase2normalbase;
+    utils.tangent_normal_projection = @tangent_normal_projection;
+    utils.orthogonal_noise = @orthogonal_noise;
+    utils.ortho_basis = @ortho_basis;
+    utils.skew_hermitian_basis = @skew_hermitian_basis;
 
 
     function W  = commutator(U, V)
@@ -82,15 +87,12 @@ function utils = get_utils()
             error('Invalid noise mode specified. Choose "real" or "complex".')
         end
         A_true = Qt * Dt * Qt';
-        % A_true = Dt;
         if orthogonal_noise
             Dt_noised = add_noise(Dt, noise_ratio, "ortho");
         else
             Dt_noised = add_noise(Dt, noise_ratio, noise_mode);
         end
         A = Qt * Dt_noised * Qt';
-        % A = Dt_noised;
-        % A = add_noise(A_true, noise_ration, mode_);
         dist_ = norm(A - A_true, 'fro')^2;
     end
     function PW = antiquasidiag_projection(W, X)
@@ -118,5 +120,102 @@ function utils = get_utils()
             end
         end
         PW = W - PW;
+    end
+
+    function noise = orthogonal_noise(D)
+        % For a diagonal matrix D, create a noise in a normal space of
+        % the manifold of normal matrices in D.
+        n = size(D, 1);
+        basis = unitarybase2normalbase(D);
+        basis = ortho_basis(basis); % checked: really orthonormal and tangent
+        
+        noise = randn(n) + 1i * randn(n);
+        tangent_noise = tangent_normal_projection(noise, basis);
+        noise = noise - tangent_noise;
+    end
+
+    function new_basis = ortho_basis(basis)
+        % From a matrix-form basis to a matrix-form Frobenius-orthogonal basis.
+        n = size(basis, 2);
+        new_basis = zeros(size(basis)); 
+        basis_vectorization = zeros(size(basis, 1), 2 * n * n);    
+        for i = 1:size(basis, 1)
+            X = squeeze(basis(i, :, :));
+            rX = reshape(real(X), 1, n * n);
+            iX = reshape(imag(X), 1, n * n);
+            basis_vectorization(i, :) = [rX, iX];
+        end
+        ortho_basis_vectorization = transpose(orth(transpose(basis_vectorization)));
+        for i = 1:size(ortho_basis_vectorization, 1)
+            rY = reshape(ortho_basis_vectorization(i, 1:n*n), n, n);
+            iY = reshape(ortho_basis_vectorization(i, n*n+1:end), n, n);
+            new_basis(i, :, :) = rY + 1i * iY;
+        end
+    end
+
+    function basis = skew_hermitian_basis(n)
+        % Returns a basis of the space of n x n skew-hermitian matrices.
+        % This is a basis of T_I U(n).
+        basis = zeros(n * n - n, n, n);
+    
+        q = 0;
+        sep = round(n * (n - 1) / 2);
+    
+        for i = 1:n-1
+            for j = i+1:n
+                q = q + 1;
+                el1 = zeros(n,n);
+                el1(i, j) = 1;
+                el1(j, i) = -1;
+                basis(q, :, :) = el1;
+                
+                el2 = zeros(n,n);
+                el2(i, j) = 1i;
+                el2(j, i) = 1i;
+                basis(q + sep, :, :) = el2;
+            end
+        end
+    end
+
+    function projected_noise = tangent_normal_projection(noise, basis)
+        % Projects the noise onto the subspace spanned by orthonormal
+        % basis.
+        rp_noise = zeros(size(noise));
+        ip_noise = zeros(size(noise));
+        for i = 1:size(basis, 1)
+            X = squeeze(basis(i, :, :));
+            rX = real(X);
+            iX = imag(X);
+            inner_product_ = real(trace(noise * X'));
+            rp_noise = rp_noise + inner_product_ * rX;
+            ip_noise = ip_noise + inner_product_ * iX;
+        end
+    
+        projected_noise = rp_noise + 1i * ip_noise;
+    end
+
+    function normal_basis = unitarybase2normalbase(D)
+        % Returns a basis of the tangent space of the normal matrix
+        % manifold in D.
+        n = size(D, 1);
+        u_basis = skew_hermitian_basis(n);
+        normal_basis = zeros(n * (n + 1), n, n);
+    
+        for i = 1:n
+            el = zeros(n);
+            el(i, i) = D(i, i);
+            normal_basis(i, :, :) = el;
+    
+            el = zeros(n);
+            a = real(D(i,i));
+            b = imag(D(i,i));
+            el(i,i) = b - a * 1i;
+            normal_basis(n + i, :, :) = el;
+        end
+    
+        for j = 1:size(u_basis, 1)
+            X = squeeze(u_basis(j, :, :));
+            normal_basis(2 * n + j, :, :) = D * X + X' * D;
+        end
     end
 end
