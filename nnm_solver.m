@@ -1,4 +1,4 @@
-function [Qs, Qscost, iter_count, time_, cost_] = nnm_solver(A, solver, options)
+function [Q, cost_, info_] = nnm_solver(A, solver, options)
 %NNM_SOLVER 
 % Finding the 'normalization matrix' for A. If A1 is the nearest
 % normal, then A1 = Qs' * D1 * Qs for some diagonal matrix D1.
@@ -20,22 +20,34 @@ function [Qs, Qscost, iter_count, time_, cost_] = nnm_solver(A, solver, options)
 %       % 
 %
 %   See also
+    
+    utils = get_utils();
+
+    comm = utils.commutator;
+    skew = utils.skew;
+    symm = utils.symm;
+    P = utils.antidiag_projection;
+    PR = utils.antiquasidiag_projection;
+
     n = size(A, 1);
     
     if strcmp(options.nnm_mode, "real")
         manifold = rotationsfactory(n, 1);
         problem.M = manifold;
-    else
+    elseif strcmp(options.nnm_mode, "complex")
         manifold = unitaryfactory(n, 1);
         problem.M = manifold;
+    else 
+        error("Incorrect nnm_mode. Choose 'real' or 'complex'.")
     end
     
     if options.schur == true
         [Q_init, ~] = schur(A, options.nnm_mode);
     elseif strcmp(options.nnm_mode, "real")
         Q_init = randrot(n);
-    else
+    elseif strcmp(options.nnm_mode, "complex")
         Q_init = randunitary(n);
+    else 
     end
     
 
@@ -47,12 +59,10 @@ function [Qs, Qscost, iter_count, time_, cost_] = nnm_solver(A, solver, options)
         checkgradient(problem);
         checkhessian(problem);
     end
+
+    options.statsfun = @nnm_statsfun;
     
-    [Qs, Qscost, info] = solver(problem, Q_init, options);
-    last_info = info(1, end);
-    iter_count = last_info.iter;
-    time_ = last_info.time;
-    cost_ = last_info.cost;
+    [Q, cost_, info_] = solver(problem, Q_init, options);
     
     function store = prepare(Q, store)
         if ~isfield(store, 'B')
@@ -97,71 +107,14 @@ function [Qs, Qscost, iter_count, time_, cost_] = nnm_solver(A, solver, options)
         % the formula from the paper is below 
         % H = 2 * skew(U * skew(comm(B', S)) + comm(comm(B, U)', S) + comm(B', P(comm(B, U))));
     end
-    
-    function W  = comm(U, V)
-        W = U * V - V * U;
-    end
-    
-    function W = skew(W)
-        W = 0.5 * (W - W');
-    end
-    
-    function W = P(W)
-        W = W - diag(diag(W));
-    end
-    
-    function W = symm(W)
-        W = 0.5 * (W + W');
-    end
 
-    function PW = PR(W, X)
-        % projection "outside of quasidiagonal"
-        % project W according to the branch of projection in X
-        PW = zeros(size(W, 1));
-        for i = 1:2:n-1
-            X11 = X(i,i);
-            X12 = X(i, i + 1);
-            X21 = X(i + 1, i);
-            X22 = X(i + 1,i + 1);
-            if abs(X12 - X21) < abs(X11 - X22)
-                PW(i,i) = W(i,i);
-                PW(i + 1, i + 1) = W(i + 1, i + 1);
-            else
-                PW(i,i) = 0.5 * (W(i, i) + W(i + 1, i + 1));
-                PW(i, i + 1) = 0.5 * (W(i, i + 1) - W(i + 1, i));
-                PW(i + 1, i) = - PW(i, i + 1);
-                PW(i + 1, i + 1) = PW(i, i);
-            end
-            if i == n - 2
-                PW(n,n) = W(n,n);
-            end
+    function stats = nnm_statsfun(~, Q, stats, store)
+        if strcmp(options.nnm_mode, 'complex')
+            current_approximation = Q * diag(diag(store.B)) * Q';
+        else
+            current_approximation = Q * (store.B - PR(store.B, store.B)) * Q';
         end
-        PW = W - PW;
+        stats.current_approx = current_approximation;
+        stats.current_point = Q;
     end
-    
-    % Below are functions that are currently not in use
-    % function [cost, gradient] = nnm_costgrad(Q)
-    %     B = Q' * A * Q;
-    %     S = P(B);
-    %     cost = norm(S, 'fro')^2;
-    %     if nargout == 2
-    %         G = 2 * (A * Q * S' + A' * Q * S);
-    %         gradient = (Q' * G - G' * Q) / 2;
-    %     end
-    % end
-    % 
-    % function G = nnm_egrad(Q)
-    %     B = Q' * A * Q;
-    %     S = P(B);
-    %     G = 2 * (A * Q * S' + A' * Q * S);
-    % end
-    % 
-    % function eH = nnm_ehess(Q, U)
-    %     Z = problem.M.tangent2ambient(Q, U);
-    %     S = P(Q' * A * Q);
-    %     dB = Z' * A * Q + Q' * A * Z;
-    %     eH = A * Z * S' + A * Q * P(dB)' + A' * Z * S + A' * Q * P(dB);
-    %     eH = 2 * eH;
-    % end
-
 end

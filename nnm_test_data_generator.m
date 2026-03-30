@@ -1,66 +1,29 @@
-function [test_data, distances] = nnm_test_data_generator(input_sizes, batch_sizes, max_ratio, mode_)
+function [test_data, distances] = nnm_test_data_generator(input_sizes, ...
+    batch_sizes, noise_ratio, noise_mode, orthogonal_noise)
+
+    utils = get_utils();
+
+    normal_matrix_noise = utils.normal_matrix_noise; 
+
     is_ = size(input_sizes, 1);
     if size(batch_sizes, 1) == 1
         bs = batch_sizes;
         batch_sizes = bs * ones(is_, 1);
     end
-    test_data = cell(is_, 1);
+    test_data = cell(2, is_);
     distances = cell(is_, 1);
     for i = 1:is_
         bs = batch_sizes(i);
         n = input_sizes(i);
-        test_data{i} = zeros(i, n, n);
+        test_data{1, i} = zeros(bs, n, n);
+        test_data{2, i} = zeros(bs, n, n);
         distances{i} = zeros(i, 1);
         for k = 1:bs
-            [A, dist_] = normal_matrix_noise(n, max_ratio, mode_);
+            [A, A_true, dist_] = normal_matrix_noise(n, noise_ratio, ...
+                noise_mode, orthogonal_noise);
             distances{i}(k) = dist_;
-            test_data{i}(k, :, :) = A;
-        end
-    end
-
-
-    function  [A, dist_] = normal_matrix_noise(n_, max_ratio, mode_)
-        if strcmp(mode_, "real")
-            Qt = randrot(n_);
-            Dt = random_quasidiagonal(n_);
-        else
-            Qt = randunitary(n_);
-            Dt = random_diagonal(n_);
-        end
-        Atrue = Qt * Dt * Qt';
-        ratio = max_ratio * rand;
-        A = add_noise(Atrue, ratio, mode_);
-        dist_ = norm(A - Atrue, 'fro')^2;
-        end
-
-
-    function A_noised = add_noise(A, ratio, mode_)
-        sizeA = size(A);
-        if strcmp(mode_, "real")
-            noise = randn(sizeA);
-        else
-            noise = randn(sizeA) + 1i * randn(sizeA);
-        end
-        noise = noise / norm(noise, 'fro');
-        A_noised = A + ratio * noise * norm(A, 'fro');
-    end
-
-    function D = random_diagonal(n)
-        d = randn(n, 1) + 1i * randn(n, 1);   
-        D = diag(d);
-    end
-
-    function D = random_quasidiagonal(n)
-        d = randn(n,1);  
-        D = zeros(n);
-        for j = 1:2:n-1
-            D(j, j) = d(j); 
-            D(j, j + 1) = d(j + 1);
-            D(j + 1, j) = - d(j + 1);
-            D(j + 1, j + 1) = d(j);
-            if j == n - 2
-                D(n, n) = d(n);
-            end
+            test_data{1, i}(k, :, :) = A;
+            test_data{2, i}(k, :, :) = A_true;
         end
     end
 

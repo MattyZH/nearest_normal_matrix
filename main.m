@@ -1,46 +1,41 @@
-input_sizes = 64:8:128;% , 256, 512];
+input_sizes = 128:1:128;% , 256, 512];
 input_sizes = input_sizes(:);
-batch_size = 33;
-solvers = {@arc}; %, @conjugategradient};
-max_ratio = 0.01;
+batch_size = 10;
+solver = @trustregions; %, @conjugategradient};
+max_ratio = 0.03;
 
-[test_data, distances] = nnm_test_data_generator(input_sizes, ...
-    batch_size, max_ratio, "real");
-options.nnm_mode = "real"; 
+[test_data4, distances4] = nnm_test_data_generator(input_sizes, ...
+    batch_size, max_ratio, "complex", false);
+options.nnm_mode = "complex"; 
 options.verbosity = 0;
 options.maxiter = 10000;
 options.testing_ = false;
 options.schur = true;
 
-
 options.timer_verbosity = 3;
-warning('off', 'manopt:getHessian:approx');
-[timing_random, timing_median_random, iterations_random] = solver_timer(solvers, ...
-    options, test_data, distances, @nnm_solver);
+test7_output = solver_timer(solver, options, test_data4, distances4, @nnm_solver);
 
+options.nnm_mode = "real";
+test4_output = solver_timer(solver, options, test_data, distances, @nnm_solver);
 
-options.nnm_mode = "complex";
-[test_data, distances] = nnm_test_data_generator(input_sizes, ...
-    batch_size, max_ratio, "complex");
-options.schur = true;
+c_median = median(test_output.timing, 2);
+r_median = median(test2_output.timing, 2);
 
-[timing_schur, timing_median_schur, iterations_schur] = solver_timer(solvers, ...
-    options, test_data, distances, @nnm_solver);
-
-
-plot(input_sizes, timing_median_random(1, :), 'r-'); hold on;
-plot(input_sizes, timing_median_schur(1, :), 'b-'); 
+plot(1:11, test_output.timing, 'r-'); hold on;
+plot(1:11, test2_output.timing, 'b-'); 
 hold off;
-legend('Real', 'Complex')
+legend('Complex', 'Real')
 
 
-is_log = log(input_sizes(:));
-tr_ta_log = log(timing_average_rh(1, :));
+is_log = log(input_sizes(1:end-1));
+tr_ta_log = log(it_median(1:end-1));
 p = polyfit(is_log, tr_ta_log, 1);
 alpha = p(1);
 C = exp(p(2));
 
 disp([alpha, C]);
+
+polyfit(input_sizes(1:end), it_mean(1:end), 1)
 
 
 
