@@ -1,20 +1,16 @@
 function [Q, cost_, info_] = nnm_solver(A, solver, options)
 %NNM_SOLVER 
 % Finding the 'normalization matrix' for A. If A1 is the nearest
-% normal, then A1 = Qs' * D1 * Qs for some diagonal matrix D1.
+% normal, then A1 = Qs' * D1 * Qs for some (quasi)diagonal matrix D1.
 %   
 %
 %   Inputs:
-%       A        - complex-valued square matrix
+%       A        - real-valued or complex-valued square matrix
 %       SOLVER   - manopt solver for the problem (trustregions, arc, etc.)
 %       OPTIONS  - struct of options for SOLVER
 %
 %   Outputs:
-%       Qs        - 
-%       Qscost    - norm(A - A1, 'fro')^2
-%       iter_count- number of iterations executed by SOLVER 
-%       time_     - time needed by SOLVER
-%       cost_     - equals to Qscost
+%       Q        - 
 %
 %   Example:
 %       % 
@@ -42,6 +38,7 @@ function [Q, cost_, info_] = nnm_solver(A, solver, options)
     end
     
     if options.schur == true
+        % TODO add ordschur for real matrices.
         [Q_init, ~] = schur(A, options.nnm_mode);
     elseif strcmp(options.nnm_mode, "real")
         Q_init = randrot(n);

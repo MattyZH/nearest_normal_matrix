@@ -76,7 +76,12 @@ function utils = get_utils()
         A_noised = A + noise_ratio * noise * norm(A, 'fro');
     end
 
-    function  [A, A_true, dist_] = normal_matrix_noise(n_, noise_ratio, noise_mode, orthogonal_noise)
+    function  [A, A_true, dist_] = normal_matrix_noise(n_, noise_ratio, noise_mode, is_noise_ortho)
+        % Add noise to the diagonalization of A with norm 
+        % noise_ratio * norm(A). 
+        % noise_mode specifies if noise should be real or complex.
+        % is_noise_ortho = true adds noise orthogonal to the manifold of
+        % normal matrices in A.
         if strcmp(noise_mode, "real")
             Qt = randrot(n_);
             Dt = random_quasidiagonal(n_);
@@ -87,7 +92,7 @@ function utils = get_utils()
             error('Invalid noise mode specified. Choose "real" or "complex".')
         end
         A_true = Qt * Dt * Qt';
-        if orthogonal_noise
+        if is_noise_ortho
             Dt_noised = add_noise(Dt, noise_ratio, "ortho");
         else
             Dt_noised = add_noise(Dt, noise_ratio, noise_mode);
@@ -196,7 +201,8 @@ function utils = get_utils()
 
     function normal_basis = unitarybase2normalbase(D)
         % Returns a basis of the tangent space of the normal matrix
-        % manifold in D.
+        % manifold in D. D must be a diagonal matrix to work properly.
+        % TODO add a warning if D is not diagonal.
         n = size(D, 1);
         u_basis = skew_hermitian_basis(n);
         normal_basis = zeros(n * (n + 1), n, n);

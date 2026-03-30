@@ -1,6 +1,12 @@
 function [test_data, distances] = nnm_test_data_generator(input_sizes, ...
     batch_size, noise_ratio, noise_mode, is_ortho_noise)
-
+    % Generate a cell-array test_data of size 2 x n_input_sizes.
+    % test_data{1, i} is batch_size x n x n array that contains batch_size nxn
+    % noised matrices. 
+    % test_data{2, i} has the same structure and contains normal matrices
+    % from which the noised were obtained.
+    % distances{i} contains squared frobenius norm of the corresponding
+    % noise.
     utils = get_utils();
 
     normal_matrix_noise = utils.normal_matrix_noise; 
