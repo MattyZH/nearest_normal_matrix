@@ -34,11 +34,11 @@ function solver_output = solver_timer(solver, options, test_data, distances, sol
             [~, cost_, info_] = solver_up(A, solver, options);
 
             last_info = info_(end);
-            iter_count = last_info.iter;
+            n_iterations = last_info.iter;
             time_ = last_info.time;
 
             if verbosity > 2
-                fprintf('Time = %f, %d iterations.\n', time_, iter_count)
+                fprintf('Time = %f, %d iterations.\n', time_, n_iterations)
             end
 
             solver_output.timing(i, k) = time_;
