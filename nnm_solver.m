@@ -37,14 +37,17 @@ function [Q, cost_, info_] = nnm_solver(A, solver, options)
         error("Incorrect nnm_mode. Choose 'real' or 'complex'.")
     end
     
-    if options.schur == true
+    if strcmp(options.init_guess, 'schur')
         % TODO add ordschur for real matrices.
         [Q_init, ~] = schur(A, options.nnm_mode);
-    elseif strcmp(options.nnm_mode, "real")
-        Q_init = randrot(n);
-    elseif strcmp(options.nnm_mode, "complex")
-        Q_init = randunitary(n);
-    else 
+    elseif strcmp(options.init_guess, 'eye')
+        Q_init = eye(n);
+    elseif strcmp(options.init_guess, 'herm_diag')
+        [Q_init, ~] = schur(symm(A), options.nnm_mode);
+    elseif strcmp(options.init_guess, 'skewherm_diag')
+        [Q_init, ~] = schur(skew(A), options.nnm_mode);
+    else
+        Q_init = problem.M.rand();
     end
     
 
