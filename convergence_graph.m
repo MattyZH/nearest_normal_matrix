@@ -38,7 +38,7 @@ function  convergence_graph(output_, data_)
     end
     plot(1:max_it, 0.5 * ones(1, max_it), 'r-');
     hold off;
-    legend('scaled distance to normal', 'scaled distance to noised', 'scaled distance to init')
+    legend('scaled distance to normal', 'scaled distance to noised') % , 'scaled distance to init')
     xlabel('Iteration');
     ylabel('Scaled Distance');
     title('Comparison of Distances to Normal and Noised Matrices');
