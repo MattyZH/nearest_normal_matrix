@@ -15,6 +15,12 @@ function utils = get_utils()
     utils.orthogonal_noise = @orthogonal_noise;
     utils.ortho_basis = @ortho_basis;
     utils.skew_hermitian_basis = @skew_hermitian_basis;
+    utils.dm = @mdm;
+    utils.doc = @diagonal_of_commutator;
+    utils.cwd = @commutator_with_diagonal;
+    utils.mdm = @mdm;
+    utils.nafu = @normal_approximation_from_unitary;
+    utils.nafo = @normal_approximation_from_orthogonal;
 
 
     function W  = commutator(U, V)
@@ -105,6 +111,7 @@ function utils = get_utils()
         % project W according to the branch of projection in X
         % PW - W is a normal real-valued quasidiagonal matrix if X is
         % real-valued.
+        n = size(W, 1);
         PW = zeros(size(W, 1));
         for i = 1:2:n-1
             X11 = X(i,i);
@@ -223,5 +230,45 @@ function utils = get_utils()
             X = squeeze(u_basis(j, :, :));
             normal_basis(2 * n + j, :, :) = D * X + X' * D;
         end
+    end
+
+    function XD = diagonal_multiplication(X, D, order)
+        % 0 for direct, 1 for inverse
+        n = size(X,1);
+        XD = zeros(n);
+        for i = 1:n
+            for j = 1:n
+                XD(i,j) = X(i,j) * ((1 - order) * D(j) + order * D(i));
+            end
+        end
+    end
+
+    function XD = mdm(X, D, order)
+        if ~order
+            XD = bsxfun(@times, X, D.');
+        else
+            XD = bsxfun(@times, X, D);
+        end
+    end
+    
+    function DC = diagonal_of_commutator(A, B)
+        n = size(A, 1);
+        DC = zeros(n, 1);
+        for i = 1:n    
+            DC(i) = times(A(i, :), B(:, i).') - times(B(i, :), A(i, :).');
+        end
+    end
+    
+    function CWD = commutator_with_diagonal(A, D, order)
+        CWD = diagonal_multiplication(A, D, order) - diagonal_multiplication(A, D, 1 - order);
+    end
+
+    function Y = normal_approximation_from_unitary(Q, A)
+        Y = Q * diag(diag(Q' * A * Q)) * Q';
+    end
+    function Y = normal_approximation_from_orthogonal(Q, A)
+        B = Q' * A * Q;
+        C = B - antiquasidiag_projection(B, B);
+        Y = Q * C * Q';
     end
 end
